@@ -1,8 +1,29 @@
 {
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "image": "mcr.microsoft.com/devcontainers/rust:latest",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "usernamehw.errorlens"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "files.autoSave": "afterDelay",
+        "files.autoSaveDelay": 0,
+        "rust-analyzer.cargo.runBuildScripts": true,
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "files.readonlyInclude": {
+          "**/.cargo/registry/src/**/*.rs": true,
+          "**/lib/rustlib/src/rust/library/**/*.rs": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "cargo install cargo-watch",
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {
-      
+      "version": "latest"
     }
   }
 }
