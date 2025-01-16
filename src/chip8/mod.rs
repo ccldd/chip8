@@ -1,14 +1,25 @@
+use input::{Key, KeyPad};
+
+pub mod input;
+
 #[derive(Debug)]
 pub struct Chip8 {
     memory: [u8; 4096],
     display: [[u8; 64]; 32],
     pc: u16,
+
+    #[allow(non_snake_case)]
     I: u16,
+
     stack: [u16; 16],
     sp: u8,
     delay_timer: u8,
     sound_timer: u8,
+
+    #[allow(non_snake_case)]
     V: [u8; 16], // registers
+
+    keypad: KeyPad,
 }
 
 impl Chip8 {
@@ -23,6 +34,7 @@ impl Chip8 {
             delay_timer: 0,
             sound_timer: 0,
             V: [0; 16],
+            keypad: KeyPad::new(),
         }
     }
 
@@ -209,6 +221,45 @@ impl Chip8 {
                         }
                     }
                 }
+            }
+            0xE000 => {
+                let x = instruction & 0x0F00 >> 8;
+                let key = self.V[x as usize];
+                match instruction & 0x00FF {
+                    0x009E => {
+                        // SKP Vx
+                        if self.keypad.is_pressed(key.into()) {
+                            self.pc += 2;
+                        }
+                    }
+                    0x00A1 => {
+                        // SKNP Vx
+                        if !self.keypad.is_pressed(key.into()) {
+                            self.pc += 2;
+                        }
+                    }
+                    _ => {
+                        self.unknown_instruction(instruction);
+                    }
+                }
+            }
+            0xF000 => {
+                let x = instruction & 0x0F00 >> 8;
+                match instruction & 0x00FF {
+                    0x0007 => {
+                        // LD Vx, DT
+                        self.V[x as usize] = self.delay_timer;
+                    }
+                    0x000A => {
+                        // LD Vx, K
+                        let key = self.keypad.wait_for_key_press();
+                        self.V[x as usize] = key as u8;
+                    }
+                    _ => {
+                        self.unknown_instruction(instruction);
+                    }
+                }
+                self.V[0xF] = 0;
             }
             _ => {
                 self.unknown_instruction(instruction);
