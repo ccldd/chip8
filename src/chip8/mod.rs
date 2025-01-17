@@ -275,7 +275,8 @@ impl Chip8 {
                     }
                     0x0029 => {
                         // LD F, Vx
-                        self.I = self.V[x as usize] as u16;
+                        let sprite = self.V[x as usize];
+                        self.I = font::get_sprite_addr(sprite);
                     }
                     0x0033 => {
                         // LD B, Vx

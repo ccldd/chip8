@@ -19,8 +19,12 @@ const FONT_SET: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
-const DEFAULT_FONT_RANGE: RangeInclusive<usize> = 0x50..=0x9F;
+pub(super) const DEFAULT_FONT_RANGE: RangeInclusive<usize> = 0x50..=0x9F;
 
-pub fn load_fonts(memory: &mut [u8; 4096]) {
+pub(super) fn load_fonts(memory: &mut [u8; 4096]) {
     memory[DEFAULT_FONT_RANGE].copy_from_slice(FONT_SET.as_slice());
+}
+
+pub(super) fn get_sprite_addr(sprite: u8) -> u16 {
+    (DEFAULT_FONT_RANGE.start() + (sprite as usize * 5)) as u16
 }
