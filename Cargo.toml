@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 num_enum = "0.7.3"
 rand = "0.8.5"
+tracing = "0.1.41"

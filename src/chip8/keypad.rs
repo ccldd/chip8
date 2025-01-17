@@ -64,13 +64,13 @@ impl KeyPad {
     /// If a key is already pressed, immediately returns
     /// the key. Otherwise, blocks until a key is pressed.
     pub fn wait_for_key_press(&self) -> Key {
-        let guard = self.key_pressed.lock().unwrap();
-        match guard.as_ref() {
-            Some(key) => key.clone(),
-            None => {
-                let key = self.is_key_pressed.wait(guard).unwrap();
-                debug_assert!(key.is_some());
-                key.unwrap()
+        loop {
+            let guard = self.key_pressed.lock().unwrap();
+            match guard.as_ref() {
+                Some(key) => return *key,
+                None => {
+                    let _key = self.is_key_pressed.wait(guard).unwrap();
+                }
             }
         }
     }

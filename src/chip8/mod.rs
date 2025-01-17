@@ -1,6 +1,8 @@
-use input::{Key, KeyPad};
+use keypad::KeyPad;
+use tracing::error;
 
-pub mod input;
+mod font;
+pub mod keypad;
 
 #[derive(Debug)]
 pub struct Chip8 {
@@ -24,7 +26,7 @@ pub struct Chip8 {
 
 impl Chip8 {
     pub fn new() -> Chip8 {
-        Chip8 {
+        let mut c = Chip8 {
             memory: [0; 4096],
             display: [[0; 64]; 32],
             pc: 0x200,
@@ -35,7 +37,11 @@ impl Chip8 {
             sound_timer: 0,
             V: [0; 16],
             keypad: KeyPad::new(),
-        }
+        };
+
+        font::load_fonts(&mut c.memory);
+
+        c
     }
 
     pub fn execute(&mut self, instruction: u16) {
@@ -56,7 +62,7 @@ impl Chip8 {
                     self.sp -= 1;
                 }
                 _ => {
-                    self.unknown_instruction(instruction);
+                    Self::unknown_instruction(instruction);
                 }
             },
             0x1000 => {
@@ -167,7 +173,7 @@ impl Chip8 {
                         self.V[x as usize] *= 2;
                     }
                     _ => {
-                        self.unknown_instruction(instruction);
+                        Self::unknown_instruction(instruction);
                     }
                 }
                 // LD Vx, Vy
@@ -239,7 +245,7 @@ impl Chip8 {
                         }
                     }
                     _ => {
-                        self.unknown_instruction(instruction);
+                        Self::unknown_instruction(instruction);
                     }
                 }
             }
@@ -255,19 +261,53 @@ impl Chip8 {
                         let key = self.keypad.wait_for_key_press();
                         self.V[x as usize] = key as u8;
                     }
+                    0x0015 => {
+                        // LD DT, Vx
+                        self.delay_timer = self.V[x as usize];
+                    }
+                    0x0018 => {
+                        // LD ST, Vx
+                        self.sound_timer = self.V[x as usize];
+                    }
+                    0x001E => {
+                        // ADD I, Vx
+                        self.I += self.V[x as usize] as u16;
+                    }
+                    0x0029 => {
+                        // LD F, Vx
+                        self.I = self.V[x as usize] as u16;
+                    }
+                    0x0033 => {
+                        // LD B, Vx
+                        let val = self.V[x as usize];
+                        self.memory[self.I as usize] = val / 100;
+                        self.memory[self.I as usize + 1] = (val / 10) % 10;
+                        self.memory[self.I as usize + 2] = val % 10;
+                    }
+                    0x0055 => {
+                        // LD [I], Vx
+                        for i in 0..=x {
+                            self.memory[self.I as usize + i as usize] = self.V[i as usize];
+                        }
+                    }
+                    0x0065 => {
+                        // LD Vx, [I]
+                        for i in 0..=x {
+                            self.V[i as usize] = self.memory[self.I as usize + i as usize];
+                        }
+                    }
                     _ => {
-                        self.unknown_instruction(instruction);
+                        Self::unknown_instruction(instruction);
                     }
                 }
-                self.V[0xF] = 0;
             }
             _ => {
-                self.unknown_instruction(instruction);
+                Self::unknown_instruction(instruction);
             }
         }
     }
 
-    fn unknown_instruction(&self, instruction: u16) {
-        println!("Unknown instruction: {:x}", instruction);
+    fn unknown_instruction(instruction: u16) {
+        error!("Unknown instruction: {:x}", instruction);
     }
 }
