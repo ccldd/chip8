@@ -1,10 +1,12 @@
 use chip8::Chip8;
 use macroquad::{
     color::{BLACK, BLUE, DARKGRAY, GREEN, RED, WHITE},
+    input::KeyCode,
     shapes::{draw_line, draw_rectangle},
     text::draw_text,
     window::{clear_background, next_frame, request_new_screen_size, screen_width},
 };
+use tracing_subscriber::fmt::SubscriberBuilder;
 
 mod chip8;
 
@@ -15,6 +17,10 @@ const PIXEL_COLOR: macroquad::color::Color = WHITE;
 async fn main() {
     let mut chip8 = Chip8::new();
 
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     let scale = 10.0;
     clear_background(BLACK);
     request_new_screen_size(
@@ -22,12 +28,17 @@ async fn main() {
         chip8::display::HEIGHT as f32 * scale,
     );
 
-    let mut x = 0;
-    let mut y = 0;
-
     loop {
         let next_instruction = chip8.fetch();
         chip8.execute(next_instruction);
+
+        macroquad::input::get_keys_down()
+            .iter()
+            .take(1)
+            .for_each(|keycode| {
+                let key = map_keycode_to_chip8_key(*keycode);
+                chip8.keypad.press(key);
+            });
 
         next_frame().await
     }
@@ -37,4 +48,26 @@ fn draw_pixel(x: u32, y: u32, color: macroquad::color::Color) {
     let x = x as f32 * SCALE;
     let y = y as f32 * SCALE;
     draw_rectangle(x, y, SCALE, SCALE, color);
+}
+
+fn map_keycode_to_chip8_key(keycode: KeyCode) -> chip8::keypad::Key {
+    match keycode {
+        KeyCode::Key1 => chip8::keypad::Key::Key1,
+        KeyCode::Key2 => chip8::keypad::Key::Key2,
+        KeyCode::Key3 => chip8::keypad::Key::Key3,
+        KeyCode::Key4 => chip8::keypad::Key::KeyC,
+        KeyCode::Q => chip8::keypad::Key::Key4,
+        KeyCode::W => chip8::keypad::Key::Key5,
+        KeyCode::E => chip8::keypad::Key::Key6,
+        KeyCode::R => chip8::keypad::Key::KeyD,
+        KeyCode::A => chip8::keypad::Key::Key7,
+        KeyCode::S => chip8::keypad::Key::Key8,
+        KeyCode::D => chip8::keypad::Key::Key9,
+        KeyCode::F => chip8::keypad::Key::KeyE,
+        KeyCode::Z => chip8::keypad::Key::KeyA,
+        KeyCode::X => chip8::keypad::Key::Key0,
+        KeyCode::C => chip8::keypad::Key::KeyB,
+        KeyCode::V => chip8::keypad::Key::KeyF,
+        _ => chip8::keypad::Key::Key0,
+    }
 }

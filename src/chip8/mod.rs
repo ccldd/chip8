@@ -22,7 +22,7 @@ pub struct Chip8 {
     #[allow(non_snake_case)]
     V: [u8; 16], // registers
 
-    keypad: KeyPad,
+    pub keypad: KeyPad,
 }
 
 impl Chip8 {
@@ -45,8 +45,11 @@ impl Chip8 {
         c
     }
 
-    pub fn fetch(&self) -> u16 {
-        self.memory[self.pc as usize] as u16 | (self.memory[self.pc as usize + 1] as u16) << 8
+    pub fn fetch(&mut self) -> u16 {
+        let bytes =
+            self.memory[self.pc as usize] as u16 | (self.memory[self.pc as usize + 1] as u16) << 8;
+        self.pc += 2;
+        bytes
     }
 
     pub fn execute(&mut self, instruction: u16) {

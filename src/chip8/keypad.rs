@@ -25,7 +25,7 @@ pub enum Key {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum KeyPosition {
+pub enum KeyState {
     Up,
     Down,
 }
@@ -75,3 +75,4 @@ impl KeyPad {
         }
     }
 }
+
