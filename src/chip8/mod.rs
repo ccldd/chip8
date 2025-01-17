@@ -1,13 +1,14 @@
 use keypad::KeyPad;
 use tracing::error;
 
+pub mod display;
 mod font;
 pub mod keypad;
 
 #[derive(Debug)]
 pub struct Chip8 {
     memory: [u8; 4096],
-    display: [[u8; 64]; 32],
+    display: [[u8; display::WIDTH as usize]; display::HEIGHT as usize],
     pc: u16,
 
     #[allow(non_snake_case)]
@@ -42,6 +43,10 @@ impl Chip8 {
         font::load_fonts(&mut c.memory);
 
         c
+    }
+
+    pub fn fetch(&self) -> u16 {
+        self.memory[self.pc as usize] as u16 | (self.memory[self.pc as usize + 1] as u16) << 8
     }
 
     pub fn execute(&mut self, instruction: u16) {
