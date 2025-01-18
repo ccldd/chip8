@@ -32,6 +32,8 @@ async fn main() {
     );
 
     loop {
+        chip8.decrement_delay_timer();
+
         chip8.keypad.release();
         macroquad::input::get_keys_down()
             .iter()
@@ -48,8 +50,8 @@ async fn main() {
 
         for y in 0..chip8::display::HEIGHT {
             for x in 0..chip8::display::WIDTH {
-                let should_draw = chip8.display[x as usize][y as usize] == 1;
-                let colour = if should_draw { PIXEL_COLOR } else { BLACK };
+                let is_pixel_on = chip8.display[x as usize][y as usize];
+                let colour = if is_pixel_on { PIXEL_COLOR } else { BLACK };
                 draw_pixel(x, y, colour);
             }
         }
