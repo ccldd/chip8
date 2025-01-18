@@ -1,3 +1,10 @@
+use std::{
+    error::Error,
+    fs::File,
+    io::{copy, Read},
+    path::Path,
+};
+
 use keypad::KeyPad;
 use tracing::error;
 
@@ -5,10 +12,14 @@ pub mod display;
 mod font;
 pub mod keypad;
 
+const INITIAL_PC: u16 = 0x200;
+const MEMORY_SIZE: usize = 4096;
+const MAX_ROM_SIZE: usize = MEMORY_SIZE - INITIAL_PC as usize;
+
 #[derive(Debug)]
 pub struct Chip8 {
-    memory: [u8; 4096],
-    display: [[u8; display::WIDTH as usize]; display::HEIGHT as usize],
+    memory: [u8; MEMORY_SIZE],
+    pub display: [[u8; display::HEIGHT as usize]; display::WIDTH as usize],
     pc: u16,
 
     #[allow(non_snake_case)]
@@ -29,8 +40,8 @@ impl Chip8 {
     pub fn new() -> Chip8 {
         let mut c = Chip8 {
             memory: [0; 4096],
-            display: [[0; 64]; 32],
-            pc: 0x200,
+            display: [[0; display::HEIGHT as usize]; display::WIDTH as usize],
+            pc: INITIAL_PC,
             I: 0,
             stack: [0; 16],
             sp: 0,
@@ -45,9 +56,26 @@ impl Chip8 {
         c
     }
 
+    pub fn load_rom(&mut self, file: &Path) -> Result<(), Box<dyn Error>> {
+        let metadata = std::fs::metadata(file)?;
+        let file_size = metadata.len() as usize;
+
+        if file_size > MAX_ROM_SIZE {
+            return Err("ROM too large".into());
+        }
+
+        let mut file = File::open(file)?;
+        let mut buf = vec![0; file_size];
+        file.read_exact(&mut buf)?;
+
+        self.memory[(INITIAL_PC as usize)..(INITIAL_PC as usize + file_size)].copy_from_slice(&buf);
+
+        Ok(())
+    }
+
     pub fn fetch(&mut self) -> u16 {
-        let bytes =
-            self.memory[self.pc as usize] as u16 | (self.memory[self.pc as usize + 1] as u16) << 8;
+        let bytes = (self.memory[self.pc as usize] as u16) << 8
+            | (self.memory[self.pc as usize + 1] as u16);
         self.pc += 2;
         bytes
     }
@@ -218,7 +246,7 @@ impl Chip8 {
                 let y = (instruction & 0x00F0 >> 4) % 32;
                 self.V[0xF] = 0;
 
-                let n = instruction & 0x000F;
+                let n: u16 = instruction & 0x000F;
                 for i in 0..n {
                     let byte = self.memory[self.I as usize + i as usize];
                     for j in 0..8 {
@@ -317,6 +345,6 @@ impl Chip8 {
     }
 
     fn unknown_instruction(instruction: u16) {
-        error!("Unknown instruction: {:x}", instruction);
+        error!("Unknown instruction: {:#06X}", instruction);
     }
 }

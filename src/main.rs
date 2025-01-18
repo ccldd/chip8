@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use chip8::Chip8;
 use macroquad::{
     color::{BLACK, BLUE, DARKGRAY, GREEN, RED, WHITE},
@@ -6,6 +8,7 @@ use macroquad::{
     text::draw_text,
     window::{clear_background, next_frame, request_new_screen_size, screen_width},
 };
+use tracing::{debug, info};
 use tracing_subscriber::fmt::SubscriberBuilder;
 
 mod chip8;
@@ -15,11 +18,13 @@ const PIXEL_COLOR: macroquad::color::Color = WHITE;
 
 #[macroquad::main("Chip-8")]
 async fn main() {
-    let mut chip8 = Chip8::new();
-
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
+
+    let mut chip8 = Chip8::new();
+    chip8.load_rom(Path::new("roms/1-chip8-logo.ch8")).unwrap();
+    info!("Loaded ROM {}", "roms/1-chip8-logo.ch8");
 
     let scale = 10.0;
     clear_background(BLACK);
@@ -29,9 +34,7 @@ async fn main() {
     );
 
     loop {
-        let next_instruction = chip8.fetch();
-        chip8.execute(next_instruction);
-
+        chip8.keypad.release();
         macroquad::input::get_keys_down()
             .iter()
             .take(1)
@@ -39,6 +42,19 @@ async fn main() {
                 let key = map_keycode_to_chip8_key(*keycode);
                 chip8.keypad.press(key);
             });
+
+        let next_instruction = chip8.fetch();
+        debug!("Next instruction: {:#06X}", next_instruction);
+
+        chip8.execute(next_instruction);
+
+        for y in 0..chip8::display::HEIGHT {
+            for x in 0..chip8::display::WIDTH {
+                let should_draw = chip8.display[x as usize][y as usize] == 1;
+                let colour = if should_draw { PIXEL_COLOR } else { BLACK };
+                draw_pixel(x, y, colour);
+            }
+        }
 
         next_frame().await
     }
