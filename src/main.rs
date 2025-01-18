@@ -2,14 +2,12 @@ use std::path::Path;
 
 use chip8::Chip8;
 use macroquad::{
-    color::{BLACK, BLUE, DARKGRAY, GREEN, RED, WHITE},
+    color::{BLACK, WHITE},
     input::KeyCode,
-    shapes::{draw_line, draw_rectangle},
-    text::draw_text,
-    window::{clear_background, next_frame, request_new_screen_size, screen_width},
+    shapes::draw_rectangle,
+    window::{clear_background, next_frame, request_new_screen_size},
 };
 use tracing::{debug, info};
-use tracing_subscriber::fmt::SubscriberBuilder;
 
 mod chip8;
 
@@ -60,7 +58,7 @@ async fn main() {
     }
 }
 
-fn draw_pixel(x: u32, y: u32, color: macroquad::color::Color) {
+fn draw_pixel(x: u8, y: u8, color: macroquad::color::Color) {
     let x = x as f32 * SCALE;
     let y = y as f32 * SCALE;
     draw_rectangle(x, y, SCALE, SCALE, color);
