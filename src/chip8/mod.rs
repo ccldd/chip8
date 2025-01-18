@@ -242,25 +242,34 @@ impl Chip8 {
             }
             0xD000 => {
                 // DRW Vx, Vy, nibble
-                let x = (instruction & 0x0F00 >> 8) % 64;
-                let y = (instruction & 0x00F0 >> 4) % 32;
+                let x_reg = instruction & 0x0F00 >> 8;
+                let y_reg = instruction & 0x00F0 >> 4;
+                let mut x: usize = (self.V[x_reg as usize] % 64) as usize;
+                let mut y: usize = (self.V[y_reg as usize] % 64) as usize;
                 self.V[0xF] = 0;
 
                 let n: u16 = instruction & 0x000F;
-                for i in 0..n {
-                    let byte = self.memory[self.I as usize + i as usize];
+                for row in 0..n {
+                    let byte = self.memory[self.I as usize + row as usize];
                     for j in 0..8 {
                         let bit = byte & (0x80 >> j);
-                        if bit == 1 && self.display[(x + j) as usize][(y + i) as usize] == 1 {
+                        if bit == 1 && self.display[x][y] == 1 {
+                            self.display[x][y] = 0;
                             self.V[0xF] = 1;
-                        } else if bit == 1 && self.display[(x + j) as usize][(y + i) as usize] == 0
-                        {
-                            self.display[(x + j) as usize][(y + i) as usize] = 1;
+                        } else if bit == 1 && self.display[x][y] == 0 {
+                            self.display[x][y] = 1;
                         }
 
-                        if x + j >= 64 {
+                        if x == (display::WIDTH - 1) as usize {
                             break;
                         }
+
+                        x += 1;
+                    }
+
+                    y += 1;
+                    if y >= display::HEIGHT as usize {
+                        break;
                     }
                 }
             }
