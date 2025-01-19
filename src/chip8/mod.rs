@@ -68,20 +68,28 @@ impl Chip8 {
         Ok(())
     }
 
+    pub fn tick(&mut self) {
+        let next_instr = self.fetch();
+        self.execute(next_instr);
+    }
+
     pub fn decrement_delay_timer(&mut self) {
         if self.delay_timer > 0 {
             self.delay_timer -= 1;
         }
     }
 
-    pub fn fetch(&mut self) -> u16 {
-        let bytes = (self.memory[self.pc as usize] as u16) << 8
-            | (self.memory[self.pc as usize + 1] as u16);
-        self.pc += 2;
-        bytes
+    fn peek_next_instruction(&self) -> u16 {
+        (self.memory[self.pc as usize] as u16) << 8 | (self.memory[self.pc as usize + 1] as u16)
     }
 
-    pub fn execute(&mut self, instruction: u16) {
+    fn fetch(&mut self) -> u16 {
+        let next_instruction = self.peek_next_instruction();
+        self.pc += 2;
+        next_instruction
+    }
+
+    fn execute(&mut self, instruction: u16) {
         let b0 = (instruction & 0xFF00) >> 8;
         let b1 = (instruction & 0x00FF) as u8;
 
@@ -287,12 +295,13 @@ impl Chip8 {
 impl Debug for Chip8 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Chip8")
-            .field("pc", &self.pc)
-            .field("I", &self.i)
-            .field("sp", &self.sp)
-            .field("dt", &self.delay_timer)
-            .field("st", &self.sound_timer)
-            .field("V", &self.v)
+            .field("instr", &format!("{:#06X}", self.peek_next_instruction()))
+            .field("pc", &format!("{:#06X}", self.pc))
+            .field("I", &format!("{:#06X}", self.i))
+            .field("sp", &format!("{:#04X}", self.sp))
+            .field("dt", &format!("{:#04X}", self.delay_timer))
+            .field("st", &format!("{:#04X}", self.sound_timer))
+            .field("V", &self.v.iter().map(|v| format!("{:#04X}", v)).collect::<Vec<_>>())
             .finish()
     }
 }

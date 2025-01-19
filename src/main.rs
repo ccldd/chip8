@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use chip8::Chip8;
 use clap::{command, Parser};
@@ -49,17 +49,11 @@ async fn main() {
                 .iter()
                 .take(1)
                 .for_each(|keycode| {
-                    let key = map_keycode_to_chip8_key(*keycode);
-                    chip8.keypad.press(key);
+                    chip8.keypad.press((*keycode).into());
                 });
 
-            let next_instruction = chip8.fetch();
-            debug!(
-                "tick: {:#08X}, instr: {:#06X}, {:?}",
-                ticks, next_instruction, chip8
-            );
-
-            chip8.execute(next_instruction);
+            debug!("tick: {:#08X}, {:?}", ticks, chip8);
+            chip8.tick();
             ticks += 1;
         }
 
@@ -87,24 +81,26 @@ fn draw_pixel(x: u8, y: u8, color: macroquad::color::Color) {
     draw_rectangle(x, y, SCALE, SCALE, color);
 }
 
-fn map_keycode_to_chip8_key(keycode: KeyCode) -> chip8::keypad::Key {
-    match keycode {
-        KeyCode::Key1 => chip8::keypad::Key::Key1,
-        KeyCode::Key2 => chip8::keypad::Key::Key2,
-        KeyCode::Key3 => chip8::keypad::Key::Key3,
-        KeyCode::Key4 => chip8::keypad::Key::KeyC,
-        KeyCode::Q => chip8::keypad::Key::Key4,
-        KeyCode::W => chip8::keypad::Key::Key5,
-        KeyCode::E => chip8::keypad::Key::Key6,
-        KeyCode::R => chip8::keypad::Key::KeyD,
-        KeyCode::A => chip8::keypad::Key::Key7,
-        KeyCode::S => chip8::keypad::Key::Key8,
-        KeyCode::D => chip8::keypad::Key::Key9,
-        KeyCode::F => chip8::keypad::Key::KeyE,
-        KeyCode::Z => chip8::keypad::Key::KeyA,
-        KeyCode::X => chip8::keypad::Key::Key0,
-        KeyCode::C => chip8::keypad::Key::KeyB,
-        KeyCode::V => chip8::keypad::Key::KeyF,
-        _ => chip8::keypad::Key::Key0,
+impl From<KeyCode> for chip8::keypad::Key {
+    fn from(keycode: KeyCode) -> Self {
+        match keycode {
+            KeyCode::Key1 => chip8::keypad::Key::Key1,
+            KeyCode::Key2 => chip8::keypad::Key::Key2,
+            KeyCode::Key3 => chip8::keypad::Key::Key3,
+            KeyCode::Key4 => chip8::keypad::Key::KeyC,
+            KeyCode::Q => chip8::keypad::Key::Key4,
+            KeyCode::W => chip8::keypad::Key::Key5,
+            KeyCode::E => chip8::keypad::Key::Key6,
+            KeyCode::R => chip8::keypad::Key::KeyD,
+            KeyCode::A => chip8::keypad::Key::Key7,
+            KeyCode::S => chip8::keypad::Key::Key8,
+            KeyCode::D => chip8::keypad::Key::Key9,
+            KeyCode::F => chip8::keypad::Key::KeyE,
+            KeyCode::Z => chip8::keypad::Key::KeyA,
+            KeyCode::X => chip8::keypad::Key::Key0,
+            KeyCode::C => chip8::keypad::Key::KeyB,
+            KeyCode::V => chip8::keypad::Key::KeyF,
+            _ => chip8::keypad::Key::Key0,
+        }
     }
 }
