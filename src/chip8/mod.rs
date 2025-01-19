@@ -180,7 +180,7 @@ impl Chip8 {
             // SHR Vx {, Vy}
             (0x8, _, _, 0x6) => {
                 self.v[0xF] = self.v[x] & 0x1;
-                self.v[x] /= 2;
+                self.v[x] >>= 1;
             }
             // SUBN Vx, Vy
             (0x8, _, _, 0x7) => {
@@ -190,7 +190,7 @@ impl Chip8 {
             // SHL Vx {, Vy}
             (0x8, _, _, 0xE) => {
                 self.v[0xF] = self.v[x] >> 7;
-                self.v[x] *= 2;
+                self.v[x] <<= 1;
             }
             // SNE Vx, Vy
             (0x9, _, _, 0x0) => {
