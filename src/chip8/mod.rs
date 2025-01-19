@@ -1,5 +1,11 @@
 use core::fmt;
-use std::{error::Error, fmt::{Debug, Formatter}, fs::File, io::Read, path::Path};
+use std::{
+    error::Error,
+    fmt::{Debug, Formatter},
+    fs::File,
+    io::Read,
+    path::Path,
+};
 
 use keypad::KeyPad;
 use tracing::error;

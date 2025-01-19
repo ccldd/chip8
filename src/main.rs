@@ -1,6 +1,7 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chip8::Chip8;
+use clap::{command, Parser};
 use macroquad::{
     color::{BLACK, WHITE},
     input::KeyCode,
@@ -15,14 +16,22 @@ const SCALE: f32 = 10.0;
 const PIXEL_COLOR: macroquad::color::Color = WHITE;
 const TICKS_PER_SECOND: u8 = 10;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    rom: PathBuf,
+}
+
 #[macroquad::main("Chip-8")]
 async fn main() {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
+    let args = Args::parse();
+
     let mut chip8 = Chip8::new();
-    chip8.load_rom(Path::new("roms/1-chip8-logo.ch8")).unwrap();
+    chip8.load_rom(&args.rom).unwrap();
     info!("Loaded ROM {rom}", rom = "roms/1-chip8-logo.ch8");
 
     let scale = 10.0;
@@ -35,8 +44,6 @@ async fn main() {
     let mut ticks: u128 = 0;
     loop {
         for _ in 0..TICKS_PER_SECOND {
-            ticks += 1;
-
             chip8.keypad.release();
             macroquad::input::get_keys_down()
                 .iter()
@@ -53,6 +60,7 @@ async fn main() {
             );
 
             chip8.execute(next_instruction);
+            ticks += 1;
         }
 
         draw_display(&chip8);
