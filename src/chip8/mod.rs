@@ -22,18 +22,12 @@ pub struct Chip8 {
     memory: [u8; MEMORY_SIZE],
     pub display: [[bool; display::HEIGHT as usize]; display::WIDTH as usize],
     pc: u16,
-
-    #[allow(non_snake_case)]
-    I: u16,
-
+    i: u16,
     stack: [u16; 16],
     sp: u8,
     delay_timer: u8,
     sound_timer: u8,
-
-    #[allow(non_snake_case)]
-    V: [u8; 16], // registers
-
+    v: [u8; 16], // registers
     pub keypad: KeyPad,
 }
 
@@ -43,12 +37,12 @@ impl Chip8 {
             memory: [0; 4096],
             display: [[false; display::HEIGHT as usize]; display::WIDTH as usize],
             pc: INITIAL_PC,
-            I: 0,
+            i: 0,
             stack: [0; 16],
             sp: 0,
             delay_timer: 0,
             sound_timer: 0,
-            V: [0; 16],
+            v: [0; 16],
             keypad: KeyPad::new(),
         };
 
@@ -124,176 +118,159 @@ impl Chip8 {
             }
             // SE Vx, byte
             (0x3, _, _, _) => {
-                if self.V[x] == byte {
+                if self.v[x] == byte {
                     self.pc += 2;
                 }
             }
             // SNE Vx, byte
             (0x4, _, _, _) => {
-                if self.V[x] != byte {
+                if self.v[x] != byte {
                     self.pc += 2;
                 }
             }
             // SE Vx, Vy
             (0x5, _, _, 0x0) => {
-                if self.V[x] == self.V[y] {
+                if self.v[x] == self.v[y] {
                     self.pc += 2;
                 }
             }
             // LD Vx, byte
             (0x6, _, _, _) => {
-                self.V[x] = byte;
+                self.v[x] = byte;
             }
             // ADD Vx, byte
             (0x7, _, _, _) => {
-                self.V[x] = self.V[x].wrapping_add(byte);
+                self.v[x] = self.v[x].wrapping_add(byte);
             }
             // LD Vx, Vy
             (0x8, _, _, 0x0) => {
-                self.V[x] = self.V[y];
+                self.v[x] = self.v[y];
             }
             // OR Vx, Vy
             (0x8, _, _, 0x1) => {
-                self.V[x] |= self.V[y];
+                self.v[x] |= self.v[y];
             }
             // AND Vx, Vy
             (0x8, _, _, 0x2) => {
-                self.V[x] &= self.V[y];
+                self.v[x] &= self.v[y];
             }
             // XOR Vx, Vy
             (0x8, _, _, 0x3) => {
-                self.V[x] ^= self.V[y];
+                self.v[x] ^= self.v[y];
             }
             // ADD Vx, Vy
             (0x8, _, _, 0x4) => {
-                let sum = self.V[x] as u16 + self.V[y] as u16;
-                self.V[0xF] = if sum > 0xFF { 1 } else { 0 };
-                self.V[x] = sum as u8;
+                let sum = self.v[x] as u16 + self.v[y] as u16;
+                self.v[0xF] = if sum > 0xFF { 1 } else { 0 };
+                self.v[x] = sum as u8;
             }
             // SUB Vx, Vy
             (0x8, _, _, 0x5) => {
-                self.V[0xF] = if self.V[x] > self.V[y] { 1 } else { 0 };
-                self.V[x] = self.V[x].wrapping_sub(self.V[y]);
+                self.v[0xF] = if self.v[x] > self.v[y] { 1 } else { 0 };
+                self.v[x] = self.v[x].wrapping_sub(self.v[y]);
             }
             // SHR Vx {, Vy}
             (0x8, _, _, 0x6) => {
-                self.V[0xF] = self.V[x] & 0x1;
-                self.V[x] /= 2;
+                self.v[0xF] = self.v[x] & 0x1;
+                self.v[x] /= 2;
             }
             // SUBN Vx, Vy
             (0x8, _, _, 0x7) => {
-                self.V[0xF] = if self.V[y] > self.V[x] { 1 } else { 0 };
-                self.V[x] = self.V[y].wrapping_sub(self.V[x]);
+                self.v[0xF] = if self.v[y] > self.v[x] { 1 } else { 0 };
+                self.v[x] = self.v[y].wrapping_sub(self.v[x]);
             }
             // SHL Vx {, Vy}
             (0x8, _, _, 0xE) => {
-                self.V[0xF] = self.V[x] >> 7;
-                self.V[x] *= 2;
+                self.v[0xF] = self.v[x] >> 7;
+                self.v[x] *= 2;
             }
             // SNE Vx, Vy
             (0x9, _, _, 0x0) => {
-                if self.V[x] != self.V[y] {
+                if self.v[x] != self.v[y] {
                     self.pc += 2;
                 }
             }
             // LD I, addr
             (0xA, _, _, _) => {
-                self.I = nnn;
+                self.i = nnn;
             }
             // JP V0, addr
             (0xB, _, _, _) => {
-                self.pc = nnn + self.V[0] as u16;
+                self.pc = nnn + self.v[0] as u16;
             }
             // RND Vx, byte
             (0xC, _, _, _) => {
                 let rand = rand::random::<u8>();
-                self.V[x] = rand & byte;
+                self.v[x] = rand & byte;
             }
             // DRW Vx, Vy, nibble
             (0xD, _, _, _) => {
-                let mut x: usize = (self.V[x] % display::WIDTH) as usize;
-                let mut y: usize = (self.V[y] % display::HEIGHT) as usize;
-                self.V[0xF] = 0;
-
-                for row in 0..n {
-                    let byte = self.memory[self.I as usize + row as usize];
-                    for j in 0..8 {
-                        let bit = byte & (0b1000_0000 >> j);
-                        if bit != 0 && self.display[x][y] {
-                            self.display[x][y] = false;
-                            self.V[0xF] = 1;
-                        } else if bit != 0 && !self.display[x][y] {
-                            self.display[x][y] = true;
-                        }
-
-                        if x == (display::WIDTH - 1) as usize {
-                            break;
-                        }
-
-                        x += 1;
-                    }
-
-                    y += 1;
-                    if y == (display::HEIGHT - 1) as usize {
-                        break;
+                self.v[0x0f] = 0;
+                for byte in 0..n {
+                    let y = (self.v[y] as usize + byte as usize) % display::HEIGHT as usize;
+                    for bit in 0..8 {
+                        let x = (self.v[x] as usize + bit) % display::WIDTH as usize;
+                        let color = (self.memory[self.i as usize + byte as usize] >> (7 - bit)) & 1;
+                        self.v[0x0f] |= color & self.display[x][y] as u8;
+                        self.display[x][y] ^= color != 0;
                     }
                 }
             }
             // SKP Vx
             (0xE, _, 0x9, 0xE) => {
-                if self.keypad.is_pressed(self.V[x].into()) {
+                if self.keypad.is_pressed(self.v[x].into()) {
                     self.pc += 2;
                 }
             }
             // SKNP Vx
             (0xE, _, 0xA, 0x1) => {
-                if !self.keypad.is_pressed(self.V[x].into()) {
+                if !self.keypad.is_pressed(self.v[x].into()) {
                     self.pc += 2;
                 }
             }
             // LD Vx, DT
             (0xF, _, 0x0, 0x7) => {
-                self.V[x] = self.delay_timer;
+                self.v[x] = self.delay_timer;
             }
             // LD Vx, K
             (0xF, _, 0x0, 0xA) => {
                 let key = self.keypad.wait_for_key_press();
-                self.V[x] = key as u8;
+                self.v[x] = key as u8;
             }
             // LD DT, Vx
             (0xF, _, 0x1, 0x5) => {
-                self.delay_timer = self.V[x];
+                self.delay_timer = self.v[x];
             }
             // LD ST, Vx
             (0xF, _, 0x1, 0x8) => {
-                self.sound_timer = self.V[x];
+                self.sound_timer = self.v[x];
             }
             // ADD I, Vx
             (0xF, _, 0x1, 0xE) => {
-                self.I += self.V[x] as u16;
+                self.i += self.v[x] as u16;
             }
             // LD F, Vx
             (0xF, _, 0x2, 0x9) => {
-                let sprite = self.V[x];
-                self.I = font::get_sprite_addr(sprite);
+                let sprite = self.v[x];
+                self.i = font::get_sprite_addr(sprite);
             }
             // LD B, Vx
             (0xF, _, 0x3, 0x3) => {
-                let val = self.V[x];
-                self.memory[self.I as usize] = val / 100;
-                self.memory[self.I as usize + 1] = (val / 10) % 10;
-                self.memory[self.I as usize + 2] = val % 10;
+                let val = self.v[x];
+                self.memory[self.i as usize] = val / 100;
+                self.memory[self.i as usize + 1] = (val / 10) % 10;
+                self.memory[self.i as usize + 2] = val % 10;
             }
             // LD [I], Vx
             (0xF, _, 0x5, 0x5) => {
                 for i in 0..=x {
-                    self.memory[self.I as usize + i] = self.V[i];
+                    self.memory[self.i as usize + i] = self.v[i];
                 }
             }
             // LD Vx, [I]
             (0xF, _, 0x6, 0x5) => {
                 for i in 0..=x {
-                    self.V[i] = self.memory[self.I as usize + i];
+                    self.v[i] = self.memory[self.i as usize + i];
                 }
             }
             _ => {
@@ -311,11 +288,11 @@ impl Debug for Chip8 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Chip8")
             .field("pc", &self.pc)
-            .field("I", &self.I)
+            .field("I", &self.i)
             .field("sp", &self.sp)
-            .field("delay_timer", &self.delay_timer)
-            .field("sound_timer", &self.sound_timer)
-            .field("V", &self.V)
+            .field("dt", &self.delay_timer)
+            .field("st", &self.sound_timer)
+            .field("V", &self.v)
             .finish()
     }
 }
