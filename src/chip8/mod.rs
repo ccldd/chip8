@@ -1,4 +1,5 @@
-use std::{error::Error, fs::File, io::Read, path::Path};
+use core::fmt;
+use std::{error::Error, fmt::{Debug, Formatter}, fs::File, io::Read, path::Path};
 
 use keypad::KeyPad;
 use tracing::error;
@@ -11,7 +12,6 @@ const INITIAL_PC: u16 = 0x200;
 const MEMORY_SIZE: usize = 4096;
 const MAX_ROM_SIZE: usize = MEMORY_SIZE - INITIAL_PC as usize;
 
-#[derive(Debug)]
 pub struct Chip8 {
     memory: [u8; MEMORY_SIZE],
     pub display: [[bool; display::HEIGHT as usize]; display::WIDTH as usize],
@@ -298,5 +298,18 @@ impl Chip8 {
 
     fn unknown_instruction(instruction: u16) {
         error!("Unknown instruction: {:#06X}", instruction);
+    }
+}
+
+impl Debug for Chip8 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Chip8")
+            .field("pc", &self.pc)
+            .field("I", &self.I)
+            .field("sp", &self.sp)
+            .field("delay_timer", &self.delay_timer)
+            .field("sound_timer", &self.sound_timer)
+            .field("V", &self.V)
+            .finish()
     }
 }

@@ -23,7 +23,7 @@ async fn main() {
 
     let mut chip8 = Chip8::new();
     chip8.load_rom(Path::new("roms/1-chip8-logo.ch8")).unwrap();
-    info!("Loaded ROM {}", "roms/1-chip8-logo.ch8");
+    info!("Loaded ROM {rom}", rom = "roms/1-chip8-logo.ch8");
 
     let scale = 10.0;
     clear_background(BLACK);
@@ -32,8 +32,11 @@ async fn main() {
         chip8::display::HEIGHT as f32 * scale,
     );
 
+    let mut ticks: u128 = 0;
     loop {
         for _ in 0..TICKS_PER_SECOND {
+            ticks += 1;
+
             chip8.keypad.release();
             macroquad::input::get_keys_down()
                 .iter()
@@ -44,7 +47,10 @@ async fn main() {
                 });
 
             let next_instruction = chip8.fetch();
-            debug!("Next instruction: {:#06X}", next_instruction);
+            debug!(
+                "tick: {:#08X}, instr: {:#06X}, {:?}",
+                ticks, next_instruction, chip8
+            );
 
             chip8.execute(next_instruction);
         }
