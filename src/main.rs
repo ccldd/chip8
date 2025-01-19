@@ -13,6 +13,7 @@ mod chip8;
 
 const SCALE: f32 = 10.0;
 const PIXEL_COLOR: macroquad::color::Color = WHITE;
+const TICKS_PER_SECOND: u8 = 10;
 
 #[macroquad::main("Chip-8")]
 async fn main() {
@@ -32,31 +33,37 @@ async fn main() {
     );
 
     loop {
-        chip8.decrement_delay_timer();
+        for _ in 0..TICKS_PER_SECOND {
+            chip8.keypad.release();
+            macroquad::input::get_keys_down()
+                .iter()
+                .take(1)
+                .for_each(|keycode| {
+                    let key = map_keycode_to_chip8_key(*keycode);
+                    chip8.keypad.press(key);
+                });
 
-        chip8.keypad.release();
-        macroquad::input::get_keys_down()
-            .iter()
-            .take(1)
-            .for_each(|keycode| {
-                let key = map_keycode_to_chip8_key(*keycode);
-                chip8.keypad.press(key);
-            });
+            let next_instruction = chip8.fetch();
+            debug!("Next instruction: {:#06X}", next_instruction);
 
-        let next_instruction = chip8.fetch();
-        debug!("Next instruction: {:#06X}", next_instruction);
-
-        chip8.execute(next_instruction);
-
-        for y in 0..chip8::display::HEIGHT {
-            for x in 0..chip8::display::WIDTH {
-                let is_pixel_on = chip8.display[x as usize][y as usize];
-                let colour = if is_pixel_on { PIXEL_COLOR } else { BLACK };
-                draw_pixel(x, y, colour);
-            }
+            chip8.execute(next_instruction);
         }
 
-        next_frame().await
+        draw_display(&chip8);
+
+        next_frame().await;
+
+        chip8.decrement_delay_timer();
+    }
+}
+
+fn draw_display(chip8: &Chip8) {
+    for y in 0..chip8::display::HEIGHT {
+        for x in 0..chip8::display::WIDTH {
+            let is_pixel_on = chip8.display[x as usize][y as usize];
+            let colour = if is_pixel_on { PIXEL_COLOR } else { BLACK };
+            draw_pixel(x, y, colour);
+        }
     }
 }
 
