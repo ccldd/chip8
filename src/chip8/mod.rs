@@ -8,7 +8,7 @@ use std::{
 };
 
 use keypad::KeyPad;
-use tracing::error;
+use tracing::{error, Value};
 
 pub mod display;
 mod font;
@@ -73,7 +73,7 @@ impl Chip8 {
         self.execute(next_instr);
     }
 
-    pub fn decrement_delay_timer(&mut self) {
+    pub fn tick_timers(&mut self) {
         if self.delay_timer > 0 {
             self.delay_timer -= 1;
         }
@@ -301,7 +301,14 @@ impl Debug for Chip8 {
             .field("sp", &format!("{:#04X}", self.sp))
             .field("dt", &format!("{:#04X}", self.delay_timer))
             .field("st", &format!("{:#04X}", self.sound_timer))
-            .field("V", &self.v.iter().map(|v| format!("{:#04X}", v)).collect::<Vec<_>>())
+            .field(
+                "V",
+                &self
+                    .v
+                    .iter()
+                    .map(|v| format!("{:#04X}", v))
+                    .collect::<Vec<_>>(),
+            )
             .finish()
     }
 }

@@ -25,14 +25,16 @@ struct Args {
 #[macroquad::main("Chip-8")]
 async fn main() {
     tracing_subscriber::fmt()
+        .compact()
         .with_max_level(tracing::Level::DEBUG)
+        .without_time()
         .init();
 
     let args = Args::parse();
 
     let mut chip8 = Chip8::new();
-    chip8.load_rom(&args.rom).unwrap();
-    info!("Loaded ROM {rom}", rom = "roms/1-chip8-logo.ch8");
+    chip8.load_rom(&args.rom).expect("error loading rom");
+    info!("Loaded ROM {rom}", rom = args.rom.display());
 
     let scale = 10.0;
     clear_background(BLACK);
@@ -45,14 +47,12 @@ async fn main() {
     loop {
         for _ in 0..TICKS_PER_SECOND {
             chip8.keypad.release();
-            macroquad::input::get_keys_down()
-                .iter()
-                .take(1)
-                .for_each(|keycode| {
-                    chip8.keypad.press((*keycode).into());
-                });
 
-            debug!("tick: {:#08X}, {:?}", ticks, chip8);
+            for keycode in macroquad::input::get_keys_down().iter().take(1) {
+                chip8.keypad.press((*keycode).into());
+            }
+
+            debug!(ticks, ?chip8);
             chip8.tick();
             ticks += 1;
         }
@@ -61,7 +61,7 @@ async fn main() {
 
         next_frame().await;
 
-        chip8.decrement_delay_timer();
+        chip8.tick_timers();
     }
 }
 

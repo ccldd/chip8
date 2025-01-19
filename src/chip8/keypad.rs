@@ -24,12 +24,6 @@ pub enum Key {
     KeyF = 0xF,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum KeyState {
-    Up,
-    Down,
-}
-
 #[derive(Debug)]
 pub struct KeyPad {
     key_pressed: Mutex<Option<Key>>,
