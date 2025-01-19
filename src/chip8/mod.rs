@@ -8,7 +8,7 @@ use std::{
 };
 
 use keypad::KeyPad;
-use tracing::{error, Value};
+use tracing::error;
 
 pub mod display;
 mod font;
@@ -169,28 +169,32 @@ impl Chip8 {
             // ADD Vx, Vy
             (0x8, _, _, 0x4) => {
                 let sum = self.v[x] as u16 + self.v[y] as u16;
-                self.v[0xF] = if sum > 0xFF { 1 } else { 0 };
                 self.v[x] = sum as u8;
+                self.v[0xF] = if sum > 0xFF { 1 } else { 0 };
             }
             // SUB Vx, Vy
             (0x8, _, _, 0x5) => {
-                self.v[0xF] = if self.v[x] > self.v[y] { 1 } else { 0 };
-                self.v[x] = self.v[x].wrapping_sub(self.v[y]);
+                let (diff, borrow) = self.v[x].overflowing_sub(self.v[y]);
+                self.v[x] = diff;
+                self.v[0xF] = if borrow { 0 } else { 1 };
             }
             // SHR Vx {, Vy}
             (0x8, _, _, 0x6) => {
-                self.v[0xF] = self.v[x] & 0x1;
+                let lsb = self.v[x] & 1;
                 self.v[x] >>= 1;
+                self.v[0xF] = lsb;
             }
             // SUBN Vx, Vy
             (0x8, _, _, 0x7) => {
-                self.v[0xF] = if self.v[y] > self.v[x] { 1 } else { 0 };
-                self.v[x] = self.v[y].wrapping_sub(self.v[x]);
+                let (diff, borrow) = self.v[y].overflowing_sub(self.v[x]);
+                self.v[x] = diff;
+                self.v[0xF] = if borrow { 0 } else { 1 };
             }
             // SHL Vx {, Vy}
             (0x8, _, _, 0xE) => {
-                self.v[0xF] = self.v[x] >> 7;
+                let msb = (self.v[x] >> 7) & 1;
                 self.v[x] <<= 1;
+                self.v[0xF] = msb;
             }
             // SNE Vx, Vy
             (0x9, _, _, 0x0) => {
@@ -282,13 +286,9 @@ impl Chip8 {
                 }
             }
             _ => {
-                Self::unknown_instruction(instruction);
+                error!("Unknown instruction: {:#06X}", instruction);
             }
         }
-    }
-
-    fn unknown_instruction(instruction: u16) {
-        error!("Unknown instruction: {:#06X}", instruction);
     }
 }
 
