@@ -8,5 +8,7 @@ clap = { version = "4.5.26", features = ["derive"] }
 macroquad = "0.4.13"
 num_enum = "0.7.3"
 rand = "0.8.5"
+strum = "0.26.3"
+strum_macros = "0.26.4"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["json"] }

@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-use keypad::{Key, KeyState};
+use keypad::Keypad;
 use tracing::error;
 
 pub mod display;
@@ -17,6 +17,8 @@ pub mod keypad;
 const INITIAL_PC: u16 = 0x200;
 const MEMORY_SIZE: usize = 4096;
 const MAX_ROM_SIZE: usize = MEMORY_SIZE - INITIAL_PC as usize;
+
+type Instruction = u16;
 
 pub struct Chip8 {
     memory: [u8; MEMORY_SIZE],
@@ -28,8 +30,8 @@ pub struct Chip8 {
     delay_timer: u8,
     sound_timer: u8,
     v: [u8; 16], // registers
+    pub keypad: Keypad,
     is_waiting_for_keypress: bool,
-    last_instruction: u16,
 }
 
 impl Chip8 {
@@ -44,8 +46,8 @@ impl Chip8 {
             delay_timer: 0,
             sound_timer: 0,
             v: [0; 16],
+            keypad: Keypad::new(),
             is_waiting_for_keypress: false,
-            last_instruction: 0,
         };
 
         font::load_fonts(&mut c.memory);
@@ -70,17 +72,14 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn tick(&mut self, current_key: Option<(Key, KeyState)>) {
-        match (self.is_waiting_for_keypress, current_key) {
-            (true, Some((_, KeyState::Down))) => {
-                self.is_waiting_for_keypress = false;
-                self.execute(self.last_instruction, current_key);
+    pub fn tick(&mut self) {
+        if self.is_waiting_for_keypress {
+            if self.keypad.get_key_pressed().is_some() {
+                self.execute(self.previous_instruction())
             }
-            (true, None) => (),
-            _ => {
-                let next_instr = self.fetch();
-                self.execute(next_instr, current_key);
-            }
+        } else {
+            let next_instr = self.fetch();
+            self.execute(next_instr);
         }
     }
 
@@ -90,17 +89,23 @@ impl Chip8 {
         }
     }
 
-    fn peek_next_instruction(&self) -> u16 {
+    /// This is the instruction that the program counter is pointing to
+    fn current_instruction(&self) -> Instruction {
         (self.memory[self.pc as usize] as u16) << 8 | (self.memory[self.pc as usize + 1] as u16)
     }
 
-    fn fetch(&mut self) -> u16 {
-        let next_instruction = self.peek_next_instruction();
+    fn previous_instruction(&self) -> Instruction {
+        (self.memory[(self.pc - 2) as usize] as u16) << 8
+            | (self.memory[(self.pc - 2) as usize + 1] as u16)
+    }
+
+    fn fetch(&mut self) -> Instruction {
+        let next_instruction = self.current_instruction();
         self.pc += 2;
         next_instruction
     }
 
-    fn execute(&mut self, instruction: u16, current_key: Option<(Key, KeyState)>) {
+    fn execute(&mut self, instruction: Instruction) {
         let b0 = (instruction & 0xFF00) >> 8;
         let b1 = (instruction & 0x00FF) as u8;
 
@@ -241,18 +246,14 @@ impl Chip8 {
             }
             // SKP Vx
             (0xE, _, 0x9, 0xE) => {
-                if let Some((key, key_state)) = current_key {
-                    if self.v[x] == key as u8 && key_state == KeyState::Down {
-                        self.pc += 2;
-                    }
+                if self.keypad.is_key_down(self.v[x].into()) {
+                    self.pc += 2;
                 }
             }
             // SKNP Vx
             (0xE, _, 0xA, 0x1) => {
-                if let Some((key, key_state)) = current_key {
-                    if self.v[x] == key as u8 && key_state == KeyState::Up {
-                        self.pc += 2;
-                    }
+                if self.keypad.is_key_up(self.v[x].into()) {
+                    self.pc += 2;
                 }
             }
             // LD Vx, DT
@@ -260,14 +261,14 @@ impl Chip8 {
                 self.v[x] = self.delay_timer;
             }
             // LD Vx, K
-            (0xF, _, 0x0, 0xA) => match current_key {
-                Some((key, KeyState::Down)) => {
-                    self.v[x] = key.into();
-                }
-                _ => {
+            (0xF, _, 0x0, 0xA) => {
+                if let Some(key) = self.keypad.get_key_pressed() {
+                    self.v[x] = key as u8;
+                    self.is_waiting_for_keypress = false;
+                } else {
                     self.is_waiting_for_keypress = true;
                 }
-            },
+            }
             // LD DT, Vx
             (0xF, _, 0x1, 0x5) => {
                 self.delay_timer = self.v[x];
@@ -308,14 +309,13 @@ impl Chip8 {
                 error!("Unknown instruction: {:#06X}", instruction);
             }
         }
-        self.last_instruction = instruction;
     }
 }
 
 impl Debug for Chip8 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Chip8")
-            .field("instr", &format!("{:#06X}", self.peek_next_instruction()))
+            .field("instr", &format!("{:#06X}", self.current_instruction()))
             .field("pc", &format!("{:#06X}", self.pc))
             .field("I", &format!("{:#06X}", self.i))
             .field("sp", &format!("{:#04X}", self.sp))

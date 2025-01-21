@@ -11,6 +11,7 @@ use macroquad::{
     shapes::draw_rectangle,
     window::{clear_background, next_frame, request_new_screen_size},
 };
+use strum::IntoEnumIterator;
 use tracing::{debug, info};
 
 mod chip8;
@@ -49,16 +50,10 @@ async fn main() {
     let mut ticks: u128 = 0;
     loop {
         for _ in 0..TICKS_PER_SECOND {
-            let current_key: Option<(Key, KeyState)> = if let Some(&key) =
-                macroquad::input::get_keys_released().iter().take(1).next()
-            {
-                Some(((key).into(), KeyState::Up))
-            } else {
-                macroquad::input::get_last_key_pressed().map(|key| ((key).into(), KeyState::Down))
-            };
+            update_keypad(&mut chip8);
 
-            debug!(ticks, ?chip8, ?current_key);
-            chip8.tick(current_key);
+            debug!(ticks, ?chip8);
+            chip8.tick();
             ticks += 1;
         }
 
@@ -86,26 +81,35 @@ fn draw_pixel(x: u8, y: u8, color: macroquad::color::Color) {
     draw_rectangle(x, y, SCALE, SCALE, color);
 }
 
-impl From<KeyCode> for chip8::keypad::Key {
-    fn from(keycode: KeyCode) -> Self {
-        match keycode {
-            KeyCode::Key1 => chip8::keypad::Key::Key1,
-            KeyCode::Key2 => chip8::keypad::Key::Key2,
-            KeyCode::Key3 => chip8::keypad::Key::Key3,
-            KeyCode::Key4 => chip8::keypad::Key::KeyC,
-            KeyCode::Q => chip8::keypad::Key::Key4,
-            KeyCode::W => chip8::keypad::Key::Key5,
-            KeyCode::E => chip8::keypad::Key::Key6,
-            KeyCode::R => chip8::keypad::Key::KeyD,
-            KeyCode::A => chip8::keypad::Key::Key7,
-            KeyCode::S => chip8::keypad::Key::Key8,
-            KeyCode::D => chip8::keypad::Key::Key9,
-            KeyCode::F => chip8::keypad::Key::KeyE,
-            KeyCode::Z => chip8::keypad::Key::KeyA,
-            KeyCode::X => chip8::keypad::Key::Key0,
-            KeyCode::C => chip8::keypad::Key::KeyB,
-            KeyCode::V => chip8::keypad::Key::KeyF,
-            _ => chip8::keypad::Key::Key0,
+fn update_keypad(chip8: &mut Chip8) {
+    for key in Key::iter() {
+        if macroquad::input::is_key_down(key.into()) {
+            chip8.keypad.set_key_state(key, KeyState::Down);
+        } else {
+            chip8.keypad.set_key_state(key, KeyState::Up);
+        }
+    }
+}
+
+impl From<Key> for KeyCode {
+    fn from(value: Key) -> Self {
+        match value {
+            Key::Key1 => KeyCode::Key1,
+            Key::Key2 => KeyCode::Key2,
+            Key::Key3 => KeyCode::Key3,
+            Key::KeyC => KeyCode::Key4,
+            Key::Key4 => KeyCode::Q,
+            Key::Key5 => KeyCode::W,
+            Key::Key6 => KeyCode::E,
+            Key::KeyD => KeyCode::R,
+            Key::Key7 => KeyCode::A,
+            Key::Key8 => KeyCode::S,
+            Key::Key9 => KeyCode::D,
+            Key::KeyE => KeyCode::F,
+            Key::KeyA => KeyCode::Z,
+            Key::Key0 => KeyCode::X,
+            Key::KeyB => KeyCode::C,
+            Key::KeyF => KeyCode::V,
         }
     }
 }
