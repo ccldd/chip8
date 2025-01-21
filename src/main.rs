@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use chip8::Chip8;
+use chip8::{
+    keypad::{Key, KeyState},
+    Chip8,
+};
 use clap::{command, Parser};
 use macroquad::{
     color::{BLACK, WHITE},
@@ -46,14 +49,16 @@ async fn main() {
     let mut ticks: u128 = 0;
     loop {
         for _ in 0..TICKS_PER_SECOND {
-            chip8.keypad.release();
+            let current_key: Option<(Key, KeyState)> = if let Some(&key) =
+                macroquad::input::get_keys_released().iter().take(1).next()
+            {
+                Some(((key).into(), KeyState::Up))
+            } else {
+                macroquad::input::get_last_key_pressed().map(|key| ((key).into(), KeyState::Down))
+            };
 
-            for keycode in macroquad::input::get_keys_down().iter().take(1) {
-                chip8.keypad.press((*keycode).into());
-            }
-
-            debug!(ticks, ?chip8);
-            chip8.tick();
+            debug!(ticks, ?chip8, ?current_key);
+            chip8.tick(current_key);
             ticks += 1;
         }
 

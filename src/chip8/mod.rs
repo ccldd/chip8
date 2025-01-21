@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-use keypad::KeyPad;
+use keypad::{Key, KeyState};
 use tracing::error;
 
 pub mod display;
@@ -28,7 +28,8 @@ pub struct Chip8 {
     delay_timer: u8,
     sound_timer: u8,
     v: [u8; 16], // registers
-    pub keypad: KeyPad,
+    is_waiting_for_keypress: bool,
+    last_instruction: u16,
 }
 
 impl Chip8 {
@@ -43,7 +44,8 @@ impl Chip8 {
             delay_timer: 0,
             sound_timer: 0,
             v: [0; 16],
-            keypad: KeyPad::new(),
+            is_waiting_for_keypress: false,
+            last_instruction: 0,
         };
 
         font::load_fonts(&mut c.memory);
@@ -68,9 +70,18 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn tick(&mut self) {
-        let next_instr = self.fetch();
-        self.execute(next_instr);
+    pub fn tick(&mut self, current_key: Option<(Key, KeyState)>) {
+        match (self.is_waiting_for_keypress, current_key) {
+            (true, Some((_, KeyState::Down))) => {
+                self.is_waiting_for_keypress = false;
+                self.execute(self.last_instruction, current_key);
+            }
+            (true, None) => (),
+            _ => {
+                let next_instr = self.fetch();
+                self.execute(next_instr, current_key);
+            }
+        }
     }
 
     pub fn tick_timers(&mut self) {
@@ -89,7 +100,7 @@ impl Chip8 {
         next_instruction
     }
 
-    fn execute(&mut self, instruction: u16) {
+    fn execute(&mut self, instruction: u16, current_key: Option<(Key, KeyState)>) {
         let b0 = (instruction & 0xFF00) >> 8;
         let b1 = (instruction & 0x00FF) as u8;
 
@@ -230,14 +241,18 @@ impl Chip8 {
             }
             // SKP Vx
             (0xE, _, 0x9, 0xE) => {
-                if self.keypad.is_pressed(self.v[x].into()) {
-                    self.pc += 2;
+                if let Some((key, key_state)) = current_key {
+                    if self.v[x] == key as u8 && key_state == KeyState::Down {
+                        self.pc += 2;
+                    }
                 }
             }
             // SKNP Vx
             (0xE, _, 0xA, 0x1) => {
-                if !self.keypad.is_pressed(self.v[x].into()) {
-                    self.pc += 2;
+                if let Some((key, key_state)) = current_key {
+                    if self.v[x] == key as u8 && key_state == KeyState::Up {
+                        self.pc += 2;
+                    }
                 }
             }
             // LD Vx, DT
@@ -245,10 +260,14 @@ impl Chip8 {
                 self.v[x] = self.delay_timer;
             }
             // LD Vx, K
-            (0xF, _, 0x0, 0xA) => {
-                let key = self.keypad.wait_for_key_press();
-                self.v[x] = key as u8;
-            }
+            (0xF, _, 0x0, 0xA) => match current_key {
+                Some((key, KeyState::Down)) => {
+                    self.v[x] = key.into();
+                }
+                _ => {
+                    self.is_waiting_for_keypress = true;
+                }
+            },
             // LD DT, Vx
             (0xF, _, 0x1, 0x5) => {
                 self.delay_timer = self.v[x];
@@ -289,6 +308,7 @@ impl Chip8 {
                 error!("Unknown instruction: {:#06X}", instruction);
             }
         }
+        self.last_instruction = instruction;
     }
 }
 
