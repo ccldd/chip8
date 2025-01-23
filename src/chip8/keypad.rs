@@ -34,6 +34,9 @@ pub enum KeyState {
 
 pub struct Keypad {
     keys: HashMap<Key, KeyState>,
+
+    /// A key is released when it transitions from Down to Up.
+    keys_released: Vec<Key>,
 }
 
 impl Keypad {
@@ -42,11 +45,19 @@ impl Keypad {
         for key in Key::iter() {
             keys.insert(key, KeyState::Up);
         }
-        Self { keys }
+        Self {
+            keys,
+            keys_released: Vec::new(),
+        }
     }
 
     pub fn set_key_state(&mut self, key: Key, key_state: KeyState) {
-        self.keys.insert(key, key_state);
+        let old_key_state = self.keys.insert(key, key_state);
+        if let Some(old_key_state) = old_key_state {
+            if old_key_state == KeyState::Down && key_state == KeyState::Up {
+                self.keys_released.push(key);
+            }
+        }
     }
 
     pub fn get_key_state(&self, key: Key) -> KeyState {
@@ -61,16 +72,11 @@ impl Keypad {
         self.get_key_state(key) == KeyState::Up
     }
 
-    pub fn get_key_pressed(&self) -> Option<Key> {
-        let key = self
-            .keys
-            .iter()
-            .find(|(_, &key_state)| key_state == KeyState::Down);
+    pub fn get_first_key_released(&self) -> Option<Key> {
+        self.keys_released.first().copied()
+    }
 
-        if let Some((&key, _)) = key {
-            Some(key)
-        } else {
-            None
-        }
+    pub fn clear_keys_released(&mut self) {
+        self.keys_released.clear();
     }
 }

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Instant};
 
 use chip8::{
     keypad::{Key, KeyState},
@@ -9,16 +9,17 @@ use macroquad::{
     color::{BLACK, WHITE},
     input::KeyCode,
     shapes::draw_rectangle,
-    window::{clear_background, next_frame, request_new_screen_size},
+    window::{next_frame, request_new_screen_size},
 };
 use strum::IntoEnumIterator;
-use tracing::{debug, info};
+use tracing::info;
+use tracing::{debug, Level};
 
 mod chip8;
 
-const SCALE: f32 = 10.0;
+const SCALE: f32 = 15.0;
 const PIXEL_COLOR: macroquad::color::Color = WHITE;
-const TICKS_PER_SECOND: u8 = 10;
+const TICKS_PER_SECOND: u8 = 20;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -30,7 +31,7 @@ struct Args {
 async fn main() {
     tracing_subscriber::fmt()
         .compact()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(Level::DEBUG)
         .without_time()
         .init();
 
@@ -40,19 +41,27 @@ async fn main() {
     chip8.load_rom(&args.rom).expect("error loading rom");
     info!("Loaded ROM {rom}", rom = args.rom.display());
 
-    let scale = 10.0;
-    clear_background(BLACK);
     request_new_screen_size(
-        chip8::display::WIDTH as f32 * scale,
-        chip8::display::HEIGHT as f32 * scale,
+        chip8::display::WIDTH as f32 * SCALE,
+        chip8::display::HEIGHT as f32 * SCALE,
     );
 
     let mut ticks: u128 = 0;
+    let mut last_frame_time = Instant::now();
+    let mut fps = 0.0;
     loop {
+        let now = Instant::now();
+        let delta_time = now.duration_since(last_frame_time);
+        last_frame_time = now;
+
+        if delta_time.as_secs_f32() > 0.0 {
+            fps = 1.0 / delta_time.as_secs_f32();
+        }
+
         for _ in 0..TICKS_PER_SECOND {
             update_keypad(&mut chip8);
 
-            debug!(ticks, ?chip8);
+            debug!(ticks, fps = fps.trunc(), ?chip8);
             chip8.tick();
             ticks += 1;
         }

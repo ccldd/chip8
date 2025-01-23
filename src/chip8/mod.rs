@@ -31,7 +31,6 @@ pub struct Chip8 {
     sound_timer: u8,
     v: [u8; 16], // registers
     pub keypad: Keypad,
-    is_waiting_for_keypress: bool,
 }
 
 impl Chip8 {
@@ -47,7 +46,6 @@ impl Chip8 {
             sound_timer: 0,
             v: [0; 16],
             keypad: Keypad::new(),
-            is_waiting_for_keypress: false,
         };
 
         font::load_fonts(&mut c.memory);
@@ -73,14 +71,9 @@ impl Chip8 {
     }
 
     pub fn tick(&mut self) {
-        if self.is_waiting_for_keypress {
-            if self.keypad.get_key_pressed().is_some() {
-                self.execute(self.previous_instruction())
-            }
-        } else {
-            let next_instr = self.fetch();
-            self.execute(next_instr);
-        }
+        let next_instr = self.fetch();
+        self.execute(next_instr);
+        self.keypad.clear_keys_released();
     }
 
     pub fn tick_timers(&mut self) {
@@ -92,11 +85,6 @@ impl Chip8 {
     /// This is the instruction that the program counter is pointing to
     fn current_instruction(&self) -> Instruction {
         (self.memory[self.pc as usize] as u16) << 8 | (self.memory[self.pc as usize + 1] as u16)
-    }
-
-    fn previous_instruction(&self) -> Instruction {
-        (self.memory[(self.pc - 2) as usize] as u16) << 8
-            | (self.memory[(self.pc - 2) as usize + 1] as u16)
     }
 
     fn fetch(&mut self) -> Instruction {
@@ -262,11 +250,10 @@ impl Chip8 {
             }
             // LD Vx, K
             (0xF, _, 0x0, 0xA) => {
-                if let Some(key) = self.keypad.get_key_pressed() {
+                if let Some(key) = self.keypad.get_first_key_released() {
                     self.v[x] = key as u8;
-                    self.is_waiting_for_keypress = false;
                 } else {
-                    self.is_waiting_for_keypress = true;
+                    self.pc -= 2;
                 }
             }
             // LD DT, Vx
