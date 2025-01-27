@@ -27,17 +27,24 @@ const TICKS_PER_SECOND: u16 = 700;
 #[command(version, about, long_about = None)]
 struct Args {
     rom: PathBuf,
+
+    #[arg(short, long, help = "Enable debug logging")]
+    debug: bool,
 }
 
 #[macroquad::main("Chip-8")]
 async fn main() {
+    let args = Args::parse();
+
     tracing_subscriber::fmt()
         .compact()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(if args.debug {
+            Level::DEBUG
+        } else {
+            Level::INFO
+        })
         .without_time()
         .init();
-
-    let args = Args::parse();
 
     let mut chip8 = Chip8::new();
     chip8.load_rom(&args.rom).expect("error loading rom");
@@ -57,11 +64,10 @@ async fn main() {
         for _ in 0..TICKS_PER_SECOND {
             update_keypad(&mut chip8);
 
-            // debug!(ticks, fps = time::get_fps(), ?chip8);
+            debug!(ticks, fps = time::get_fps(), ?chip8);
             chip8.tick();
             ticks += 1;
         }
-
         draw_display(&chip8);
         next_frame().await;
 
@@ -74,8 +80,6 @@ async fn main() {
                     volume: 1.0,
                 },
             );
-        } else {
-            audio::stop_sound(&beep);
         }
     }
 }
