@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Instant};
+use std::path::PathBuf;
 
 use chip8::{
     keypad::{Key, KeyState},
@@ -6,9 +6,11 @@ use chip8::{
 };
 use clap::{command, Parser};
 use macroquad::{
+    audio::{self, PlaySoundParams},
     color::{BLACK, WHITE},
     input::KeyCode,
     shapes::draw_rectangle,
+    time,
     window::{next_frame, request_new_screen_size},
 };
 use strum::IntoEnumIterator;
@@ -19,7 +21,7 @@ mod chip8;
 
 const SCALE: f32 = 15.0;
 const PIXEL_COLOR: macroquad::color::Color = WHITE;
-const TICKS_PER_SECOND: u8 = 20;
+const TICKS_PER_SECOND: u16 = 700;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -41,36 +43,40 @@ async fn main() {
     chip8.load_rom(&args.rom).expect("error loading rom");
     info!("Loaded ROM {rom}", rom = args.rom.display());
 
+    let beep = audio::load_sound("beep.wav")
+        .await
+        .expect("error loading sound");
+
     request_new_screen_size(
         chip8::display::WIDTH as f32 * SCALE,
         chip8::display::HEIGHT as f32 * SCALE,
     );
 
     let mut ticks: u128 = 0;
-    let mut last_frame_time = Instant::now();
-    let mut fps = 0.0;
     loop {
-        let now = Instant::now();
-        let delta_time = now.duration_since(last_frame_time);
-        last_frame_time = now;
-
-        if delta_time.as_secs_f32() > 0.0 {
-            fps = 1.0 / delta_time.as_secs_f32();
-        }
-
         for _ in 0..TICKS_PER_SECOND {
             update_keypad(&mut chip8);
 
-            debug!(ticks, fps = fps.trunc(), ?chip8);
+            // debug!(ticks, fps = time::get_fps(), ?chip8);
             chip8.tick();
             ticks += 1;
         }
 
         draw_display(&chip8);
-
         next_frame().await;
 
         chip8.tick_timers();
+        if chip8.should_play_sound() {
+            audio::play_sound(
+                &beep,
+                PlaySoundParams {
+                    looped: false,
+                    volume: 1.0,
+                },
+            );
+        } else {
+            audio::stop_sound(&beep);
+        }
     }
 }
 

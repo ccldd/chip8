@@ -80,6 +80,14 @@ impl Chip8 {
         if self.delay_timer > 0 {
             self.delay_timer -= 1;
         }
+
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
+    }
+    
+    pub fn should_play_sound(&self) -> bool {
+        self.sound_timer > 0
     }
 
     /// This is the instruction that the program counter is pointing to
